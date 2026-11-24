@@ -1,0 +1,1871 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Liga ng mga Gwapings — Offseason Division &amp; Promotion Simulator</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+    }
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen antialiased selection:bg-amber-500/30 selection:text-amber-200">
+
+  <!-- Toast Notification Banner -->
+  <div id="toast" class="fixed bottom-5 right-5 z-50 hidden transform transition-all duration-300 translate-y-2 opacity-0">
+    <div class="bg-slate-800 border border-slate-700 text-slate-100 px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3 text-sm font-medium">
+      <span id="toast-icon" class="text-emerald-400 text-base">✓</span>
+      <span id="toast-msg">Copied to clipboard!</span>
+    </div>
+  </div>
+
+  <!-- Bulk Paste Modal -->
+  <div id="bulk-modal" class="fixed inset-0 z-40 hidden bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-2xl w-full p-6 shadow-2xl">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="text-lg font-bold text-white">Import Standings (Sports.ws CSV / Rows)</h3>
+        <button onclick="closeBulkModal()" class="text-slate-400 hover:text-white p-1 rounded-lg transition">✕</button>
+      </div>
+      <p class="text-xs text-slate-400 mb-3 leading-relaxed">
+        Paste your standings directly from Sports.ws or Excel (22 to 30 teams). <strong class="text-emerald-400">Supports all formats automatically:</strong>
+        <br />• <code class="text-amber-300 bg-slate-950 px-1.5 py-0.5 rounded">Pating Gaming, 1, 9, 6, 90.9</code> (5-col Sports.ws single-division export)
+        <br />• <code class="text-amber-300 bg-slate-950 px-1.5 py-0.5 rounded">Pating Gaming, 9, 6, 90.9</code> or <code class="text-amber-300 bg-slate-950 px-1.5 py-0.5 rounded">Pating Gaming (9-6) 90.9</code>
+        <br />• <code class="text-slate-300 bg-slate-950 px-1.5 py-0.5 rounded">Pating Gaming, 1A, 9, 6, 90.9</code> (with existing 1A–3B divisions)
+      </p>
+      <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+        <span class="text-[11px] text-slate-400">Standings without 1A–3B divisions switch to <strong class="text-amber-400">Inaugural Seeding (Sec. 3.6)</strong>.</span>
+        <button onclick="fillSampleSportsWsInModal()" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-[11px] font-semibold text-amber-300 transition">
+          Load 26-Team Sports.ws Export Sample
+        </button>
+      </div>
+      <textarea id="bulk-textarea" rows="11" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs font-mono text-slate-200 focus:outline-none focus:border-amber-500" placeholder="Fairview assassins, 1, 13, 2, 114.1&#10;Ginebra Kings, 1, 12, 3, 109.3&#10;..."></textarea>
+      <div id="bulk-error" class="text-rose-400 text-xs mt-2 hidden"></div>
+      <div class="flex justify-end gap-2 mt-4">
+        <button onclick="closeBulkModal()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition">Cancel</button>
+        <button onclick="applyBulkPaste()" class="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold transition">Import Standings</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Header -->
+  <header class="border-b border-slate-800/80 bg-slate-900/70 backdrop-blur sticky top-0 z-30">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+      <div>
+        <div class="flex items-center gap-2.5">
+          <span class="inline-flex items-center justify-center w-8 h-8 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400 font-extrabold text-sm">LG</span>
+          <h1 class="text-lg sm:text-xl font-extrabold tracking-tight text-white">Liga ng mga Gwapings — Offseason Division &amp; Promotion Simulator</h1>
+        </div>
+        <p class="text-xs text-slate-400 mt-1">Article III Governance Engine (Updated 11/24/2026) · Champion-Only Tier 1 Protection · Div Winners + Wildcard Movement · Finals Conference Separation</p>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <button onclick="openBulkModal()" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-semibold text-slate-200 transition">
+          Paste CSV / Rows
+        </button>
+        <button onclick="resetToDefault26()" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-semibold text-slate-300 transition">
+          Reset Default 26
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-8">
+
+    <!-- Mode Switcher & Preset Scenarios -->
+    <section class="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-lg space-y-4">
+      <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <div>
+          <span class="text-[11px] font-bold uppercase tracking-wider text-amber-400">Constitution Article III Engine</span>
+          <h2 class="text-base font-bold text-white mt-0.5">Select Simulation Mode</h2>
+          <p id="mode-helper-desc" class="text-xs text-slate-400 mt-0.5">
+            Start in <strong class="text-slate-200">Mode A (Section 3.6)</strong> for end-of-2026–27 inaugural placement, then click <strong class="text-amber-300">Lock &amp; Promote to Standard Offseason ↑</strong> to simulate <strong class="text-slate-200">Mode B (Sections 3.2–3.4)</strong>.
+          </p>
+        </div>
+        <div class="inline-flex flex-wrap rounded-xl bg-slate-950 p-1 border border-slate-800 self-start gap-1">
+          <button id="mode-inaugural-btn" onclick="setMode('inaugural')" class="px-3.5 py-2 rounded-lg text-xs font-bold transition bg-amber-500 text-slate-950">
+            Mode A: Inaugural Seeding (Sec. 3.6)
+          </button>
+          <button id="mode-standard-btn" onclick="setMode('standard')" class="px-3.5 py-2 rounded-lg text-xs font-semibold transition text-slate-400 hover:text-white">
+            Mode B: Standard Offseason (Sec. 3.2–3.4)
+          </button>
+        </div>
+      </div>
+
+      <!-- Preset Test Buttons -->
+      <div class="pt-3 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-2">
+        <span class="text-[11px] font-semibold text-slate-400">Quick Article III Scenarios (Tests Standard, Cinderella &amp; Squeeze Rules):</span>
+        <div class="flex flex-wrap gap-2">
+          <button onclick="loadPresetScenario('standard_run')" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-[11px] font-semibold text-slate-200 transition">
+            Standard Run (Tier 1 Champ)
+          </button>
+          <button onclick="loadPresetScenario('cinderella')" class="px-2.5 py-1.5 rounded-lg bg-indigo-500/15 hover:bg-indigo-500/25 border border-indigo-500/30 text-[11px] font-semibold text-indigo-300 transition">
+            Test Cinderella Run (Tier 3 Champ + Tier 2 Runner-Up)
+          </button>
+          <button onclick="loadPresetScenario('tier1_squeeze')" class="px-2.5 py-1.5 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-[11px] font-semibold text-rose-300 transition">
+            Tier 1 3rd-Place Champ Squeeze
+          </button>
+        </div>
+      </div>
+
+      <!-- Validation Banner -->
+      <div id="validation-banner" class="hidden rounded-xl p-3.5 text-xs border"></div>
+    </section>
+
+    <!-- STEP 1: Regular Season Standings & Section 3.7 Roster Changes -->
+    <section class="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-6 shadow-lg space-y-5">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="px-2 py-0.5 rounded-md bg-slate-800 text-amber-400 font-bold text-xs">STEP 1</span>
+            <h2 class="text-base sm:text-lg font-bold text-white">Regular Season Standings &amp; Tiebreakers (Sec. 3.5)</h2>
+          </div>
+          <p id="step1-subtitle" class="text-xs text-slate-400 mt-1">
+            Tiebreaker order: 1) Win %, 2) Fantasy Points / FPPG, 3) H2H Seed, 4) Preceding Postseason Finish. Toggle <span class="text-rose-400 font-semibold">Contraction Exit</span> on any team to simulate an unreplaced exit (Sec. 3.7).
+          </p>
+        </div>
+        <div id="div-counts-pill" class="flex flex-wrap gap-1.5 text-[11px] font-mono"></div>
+      </div>
+
+      <!-- Filter Tabs for Step 1 Table -->
+      <div id="div-filter-bar" class="hidden flex flex-wrap items-center gap-1.5">
+        <button onclick="filterTable('ALL')" data-filter="ALL" class="filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-500 text-slate-950 border border-amber-400">All</button>
+        <button onclick="filterTable('UNASSIGNED')" data-filter="UNASSIGNED" class="filter-btn px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-950 text-slate-400 hover:text-white border border-slate-800">Unassigned</button>
+        <button onclick="filterTable('1A')" data-filter="1A" class="filter-btn px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-950 text-slate-400 hover:text-white border border-slate-800">1A</button>
+        <button onclick="filterTable('1B')" data-filter="1B" class="filter-btn px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-950 text-slate-400 hover:text-white border border-slate-800">1B</button>
+        <button onclick="filterTable('2A')" data-filter="2A" class="filter-btn px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-950 text-slate-400 hover:text-white border border-slate-800">2A</button>
+        <button onclick="filterTable('2B')" data-filter="2B" class="filter-btn px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-950 text-slate-400 hover:text-white border border-slate-800">2B</button>
+        <button onclick="filterTable('3A')" data-filter="3A" class="filter-btn px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-950 text-slate-400 hover:text-white border border-slate-800">3A</button>
+        <button onclick="filterTable('3B')" data-filter="3B" class="filter-btn px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-950 text-slate-400 hover:text-white border border-slate-800">3B</button>
+      </div>
+
+      <div class="overflow-x-auto rounded-xl border border-slate-800">
+        <table class="w-full text-left border-collapse text-xs">
+          <thead>
+            <tr class="bg-slate-950 text-slate-400 uppercase tracking-wider text-[11px] border-b border-slate-800">
+              <th class="py-3 px-3 w-10">Rank</th>
+              <th class="py-3 px-3 min-w-[190px]">Team Name</th>
+              <th id="th-current-div" class="py-3 px-3 w-32 hidden">Current Div</th>
+              <th class="py-3 px-3 w-20">W</th>
+              <th class="py-3 px-3 w-20">L</th>
+              <th class="py-3 px-3 w-20">Win %</th>
+              <th class="py-3 px-3 w-24">FPPG / Pts</th>
+              <th class="py-3 px-3 w-24" title="Higher number wins exact Win% + FPPG ties (Sec. 3.5(3) H2H Override)">H2H Seed</th>
+              <th class="py-3 px-3 w-36">Sec. 3.7 Status</th>
+            </tr>
+          </thead>
+          <tbody id="standings-tbody" class="divide-y divide-slate-800/70 bg-slate-900/40">
+            <!-- Populated dynamically -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Section 3.7 Roster Changes Panel (Expansion Franchises up to 30 teams max) -->
+      <div class="bg-slate-950 border border-slate-800 rounded-xl p-4">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <div>
+            <span class="text-[11px] font-bold uppercase tracking-wider text-purple-400">Section 3.7 · Replacement, Contraction &amp; Expansion</span>
+            <p class="text-xs text-slate-400 mt-0.5">
+              Active Franchises: <strong id="active-count-label" class="text-white">26</strong> · Expansion Teams Added: <strong id="expansion-count-label" class="text-purple-300">0</strong> · Projected League Size: <strong id="projected-total-label" class="text-emerald-400">26 / 30 max</strong>
+            </p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <input id="new-expansion-name" type="text" placeholder="Expansion Franchise Name..." class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500" />
+            <button onclick="addExpansionTeam()" class="px-3 py-1.5 rounded-lg bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/40 text-purple-300 text-xs font-bold transition">
+              + Add Expansion Team (Tier 3)
+            </button>
+          </div>
+        </div>
+        <div id="expansion-list-container" class="mt-3 hidden flex flex-wrap gap-2">
+          <!-- Expansion team chips -->
+        </div>
+      </div>
+    </section>
+
+    <!-- STEP 2: Postseason Playoff Results -->
+    <section class="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-6 shadow-lg">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="px-2 py-0.5 rounded-md bg-slate-800 text-amber-400 font-bold text-xs">STEP 2</span>
+            <h2 class="text-base sm:text-lg font-bold text-white">Postseason Playoff Results</h2>
+          </div>
+          <p id="step2-subtitle" class="text-xs text-slate-400 mt-1">
+            Selecting a team for a higher round automatically clears them from any lower round so no team is ever greyed out.
+          </p>
+        </div>
+        <button onclick="runSimulation()" class="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs sm:text-sm shadow-lg shadow-amber-500/20 transition self-start sm:self-auto">
+          Simulate Next Season →
+        </button>
+      </div>
+
+      <!-- Mode A: Inaugural Seeding Inputs (Section 3.6) -->
+      <div id="inaugural-playoff-inputs" class="space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="bg-slate-950 border border-amber-500/30 rounded-xl p-4">
+            <label for="inaug-champ" class="block text-xs font-bold text-amber-400 uppercase tracking-wider mb-1.5">🏆 League Champion (Locks into Div 1A - Premier)</label>
+            <select id="inaug-champ" onchange="handlePlayoffPickChange('inaug-champ')" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm font-semibold text-white focus:outline-none focus:border-amber-500"></select>
+          </div>
+          <div class="bg-slate-950 border border-sky-500/30 rounded-xl p-4">
+            <label for="inaug-runnerup" class="block text-xs font-bold text-sky-400 uppercase tracking-wider mb-1.5">🥈 Finals Runner-Up (Locks into Div 1B - Premier)</label>
+            <select id="inaug-runnerup" onchange="handlePlayoffPickChange('inaug-runnerup')" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm font-semibold text-white focus:outline-none focus:border-sky-500"></select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-2.5">
+            <span class="block text-xs font-bold text-emerald-400 uppercase tracking-wider">Semifinalists (2 Teams → Tier 1)</span>
+            <select id="inaug-sf1" onchange="handlePlayoffPickChange('inaug-sf1')" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-2 text-xs text-white"></select>
+            <select id="inaug-sf2" onchange="handlePlayoffPickChange('inaug-sf2')" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-2 text-xs text-white"></select>
+          </div>
+
+          <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-2">
+            <span class="block text-xs font-bold text-indigo-400 uppercase tracking-wider">Quarterfinalists (4: Top 2 → T1, Bottom 2 → T2)</span>
+            <select id="inaug-qf1" onchange="handlePlayoffPickChange('inaug-qf1')" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white"></select>
+            <select id="inaug-qf2" onchange="handlePlayoffPickChange('inaug-qf2')" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white"></select>
+            <select id="inaug-qf3" onchange="handlePlayoffPickChange('inaug-qf3')" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white"></select>
+            <select id="inaug-qf4" onchange="handlePlayoffPickChange('inaug-qf4')" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white"></select>
+          </div>
+
+          <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-2">
+            <span class="block text-xs font-bold text-slate-300 uppercase tracking-wider">Round 1 Exits (4 Teams → Tier 2)</span>
+            <select id="inaug-r1-1" onchange="handlePlayoffPickChange('inaug-r1-1')" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white"></select>
+            <select id="inaug-r1-2" onchange="handlePlayoffPickChange('inaug-r1-2')" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white"></select>
+            <select id="inaug-r1-3" onchange="handlePlayoffPickChange('inaug-r1-3')" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white"></select>
+            <select id="inaug-r1-4" onchange="handlePlayoffPickChange('inaug-r1-4')" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white"></select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mode B: Standard Offseason Inputs (Sections 3.2–3.4 & 3.5(4)) -->
+      <div id="standard-playoff-inputs" class="hidden space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="bg-slate-950 border border-amber-500/30 rounded-xl p-4">
+            <label for="select-champion" class="block text-xs font-bold text-amber-400 uppercase tracking-wider mb-1.5">
+              🏆 League Champion (Champion Protection → Div 1A)
+            </label>
+            <select id="select-champion" onchange="handleStandardPickChange('select-champion')" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm font-semibold text-white focus:outline-none focus:border-amber-500"></select>
+            <p id="champ-meta" class="text-[11px] text-slate-400 mt-2"></p>
+          </div>
+
+          <div class="bg-slate-950 border border-sky-500/30 rounded-xl p-4">
+            <label for="select-runnerup" class="block text-xs font-bold text-sky-400 uppercase tracking-wider mb-1.5">
+              🥈 Finals Runner-Up (Earned Tier Only + Conf B Separation)
+            </label>
+            <select id="select-runnerup" onchange="handleStandardPickChange('select-runnerup')" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm font-semibold text-white focus:outline-none focus:border-sky-500"></select>
+            <p id="runnerup-meta" class="text-[11px] text-slate-400 mt-2"></p>
+          </div>
+        </div>
+
+        <!-- Optional Section 3.5(4) Postseason Finish Tiebreaker Selectors -->
+        <details class="bg-slate-950/70 border border-slate-800 rounded-xl p-3.5">
+          <summary class="cursor-pointer text-xs font-semibold text-slate-300 select-none">
+            Optional: Preceding Postseason Finish (Section 3.5(4) 4th-Level Tiebreaker)
+          </summary>
+          <p class="text-[11px] text-slate-400 mt-1.5 mb-3">
+            Only needed if two teams tie identically on Win %, Fantasy Points, and H2H Seed. Ranked: Champion &gt; Runner-Up &gt; Semifinalists &gt; Quarterfinalists &gt; 1st Round Exits &gt; Non-Playoff.
+          </p>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div class="space-y-1.5">
+              <span class="block text-[11px] font-bold text-emerald-400 uppercase">Semifinalists (2)</span>
+              <select id="std-sf1" onchange="handleStandardExtraPickChange('std-sf1')" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-white"></select>
+              <select id="std-sf2" onchange="handleStandardExtraPickChange('std-sf2')" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-white"></select>
+            </div>
+            <div class="space-y-1.5">
+              <span class="block text-[11px] font-bold text-indigo-400 uppercase">Quarterfinalists (4)</span>
+              <select id="std-qf1" onchange="handleStandardExtraPickChange('std-qf1')" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-white"></select>
+              <select id="std-qf2" onchange="handleStandardExtraPickChange('std-qf2')" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-white"></select>
+              <select id="std-qf3" onchange="handleStandardExtraPickChange('std-qf3')" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-white"></select>
+              <select id="std-qf4" onchange="handleStandardExtraPickChange('std-qf4')" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-white"></select>
+            </div>
+            <div class="space-y-1.5">
+              <span class="block text-[11px] font-bold text-slate-300 uppercase">Round 1 Exits (4)</span>
+              <select id="std-r1-1" onchange="handleStandardExtraPickChange('std-r1-1')" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-white"></select>
+              <select id="std-r1-2" onchange="handleStandardExtraPickChange('std-r1-2')" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-white"></select>
+              <select id="std-r1-3" onchange="handleStandardExtraPickChange('std-r1-3')" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-white"></select>
+              <select id="std-r1-4" onchange="handleStandardExtraPickChange('std-r1-4')" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-white"></select>
+            </div>
+          </div>
+        </details>
+      </div>
+    </section>
+
+    <!-- OUTPUT: Simulated Next Season Divisions & Audit Log -->
+    <section id="results-section" class="space-y-6">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-400 font-bold text-xs">OUTPUT</span>
+            <h2 class="text-lg sm:text-xl font-extrabold text-white">Projected Next Season Divisions (Conference A &amp; B)</h2>
+          </div>
+          <p class="text-xs text-slate-400 mt-1">Tiers populated first under Sections 3.2–3.3 (or 3.6), then snake-seeded into Conference A &amp; B under Section 3.4.</p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <button onclick="promoteOutputToCurrentSeason()" class="px-3.5 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 text-xs font-bold transition shadow-md" title="Assign these generated divisions to Step 1 and switch to Mode B: Standard Offseason">
+            Lock &amp; Promote to Standard Offseason ↑
+          </button>
+          <button onclick="copyMessengerSummary()" class="px-3.5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold transition shadow-md">
+            Copy FB Messenger Summary
+          </button>
+          <button onclick="copyCsvOutput()" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-semibold transition">
+            Copy CSV Table
+          </button>
+        </div>
+      </div>
+
+      <!-- 2-Column Conference Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Conference A -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-5 space-y-4">
+          <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+            <div>
+              <span class="text-[11px] font-bold uppercase tracking-wider text-amber-400">Conference A · Champion Side</span>
+              <h3 class="text-base font-extrabold text-white">CONFERENCE A</h3>
+            </div>
+            <span id="conf-a-count-badge" class="text-xs font-mono text-slate-400 bg-slate-950 px-2.5 py-1 rounded-lg border border-slate-800">3 – 4 – 6</span>
+          </div>
+
+          <div id="conf-a-cards" class="space-y-4"></div>
+        </div>
+
+        <!-- Conference B -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-5 space-y-4">
+          <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+            <div>
+              <span class="text-[11px] font-bold uppercase tracking-wider text-sky-400">Conference B · Runner-Up Separation Side</span>
+              <h3 class="text-base font-extrabold text-white">CONFERENCE B</h3>
+            </div>
+            <span id="conf-b-count-badge" class="text-xs font-mono text-slate-400 bg-slate-950 px-2.5 py-1 rounded-lg border border-slate-800">3 – 4 – 6</span>
+          </div>
+
+          <div id="conf-b-cards" class="space-y-4"></div>
+        </div>
+      </div>
+
+      <!-- Audit Log & Active Clauses -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-6">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
+          <h3 class="text-sm font-bold uppercase tracking-wider text-slate-300">Constitution Article III Audit Log</h3>
+          <div id="triggered-badges" class="flex flex-wrap gap-1.5"></div>
+        </div>
+        <ul id="audit-log-list" class="space-y-2 text-xs text-slate-300 leading-relaxed"></ul>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    // =========================================================================
+    // 1. PRE-LOADED 26-TEAM STANDINGS (Exact 15-Game Standings Provided)
+    // =========================================================================
+    const INITIAL_26_STANDINGS = [
+      { id: 1, name: "Fairview assassins", div: "UNASSIGNED", w: 13, l: 2, pts: 114.1, h2h: 26, exiting: false },
+      { id: 2, name: "Ginebra Kings", div: "UNASSIGNED", w: 12, l: 3, pts: 109.3, h2h: 25, exiting: false },
+      { id: 3, name: "BIG Ticket", div: "UNASSIGNED", w: 12, l: 3, pts: 107.4, h2h: 24, exiting: false },
+      { id: 4, name: "ExtraJudicial Killings", div: "UNASSIGNED", w: 12, l: 3, pts: 100.4, h2h: 23, exiting: false },
+      { id: 5, name: "Mig Oui Club Deportivo", div: "UNASSIGNED", w: 11, l: 4, pts: 102.4, h2h: 22, exiting: false },
+      { id: 6, name: "Zenaida Dragons", div: "UNASSIGNED", w: 11, l: 4, pts: 100.0, h2h: 21, exiting: false },
+      { id: 7, name: "Snake Doctor", div: "UNASSIGNED", w: 9, l: 6, pts: 98.5, h2h: 20, exiting: false },
+      { id: 8, name: "Manchester Prime All Stars", div: "UNASSIGNED", w: 9, l: 6, pts: 92.7, h2h: 19, exiting: false },
+      { id: 9, name: "Pating Gaming", div: "UNASSIGNED", w: 9, l: 6, pts: 90.9, h2h: 18, exiting: false },
+      { id: 10, name: "Batangas Balisong", div: "UNASSIGNED", w: 8, l: 7, pts: 97.7, h2h: 17, exiting: false },
+      { id: 11, name: "Parkwood Ballers", div: "UNASSIGNED", w: 8, l: 7, pts: 90.8, h2h: 16, exiting: false },
+      { id: 12, name: "Diliman White Tigers", div: "UNASSIGNED", w: 8, l: 7, pts: 85.9, h2h: 15, exiting: false },
+      { id: 13, name: "Edeno Uno", div: "UNASSIGNED", w: 7, l: 8, pts: 97.3, h2h: 14, exiting: false },
+      { id: 14, name: "Binangonan 69ers", div: "UNASSIGNED", w: 7, l: 8, pts: 85.9, h2h: 13, exiting: false },
+      { id: 15, name: "Emerald Glamour Boys", div: "UNASSIGNED", w: 7, l: 8, pts: 83.9, h2h: 12, exiting: false },
+      { id: 16, name: "Bini Wockeez", div: "UNASSIGNED", w: 7, l: 8, pts: 80.5, h2h: 11, exiting: false },
+      { id: 17, name: "Slasher Team", div: "UNASSIGNED", w: 7, l: 8, pts: 77.9, h2h: 10, exiting: false },
+      { id: 18, name: "Serg's Ibaka", div: "UNASSIGNED", w: 6, l: 9, pts: 78.3, h2h: 9, exiting: false },
+      { id: 19, name: "Pantok Fishballers", div: "UNASSIGNED", w: 5, l: 10, pts: 91.1, h2h: 8, exiting: false },
+      { id: 20, name: "Demonic Ochoas", div: "UNASSIGNED", w: 5, l: 10, pts: 85.5, h2h: 7, exiting: false },
+      { id: 21, name: "Gilas Pilipinas", div: "UNASSIGNED", w: 5, l: 10, pts: 82.2, h2h: 6, exiting: false },
+      { id: 22, name: "PRO Tambays", div: "UNASSIGNED", w: 5, l: 10, pts: 79.1, h2h: 5, exiting: false },
+      { id: 23, name: "Metropolitan Pumpkins", div: "UNASSIGNED", w: 4, l: 11, pts: 83.4, h2h: 4, exiting: false },
+      { id: 24, name: "Fadeaway Dunk", div: "UNASSIGNED", w: 4, l: 11, pts: 75.7, h2h: 3, exiting: false },
+      { id: 25, name: "Market Ave. BasketBrawler", div: "UNASSIGNED", w: 2, l: 13, pts: 69.9, h2h: 2, exiting: false },
+      { id: 26, name: "PMA Blues", div: "UNASSIGNED", w: 2, l: 13, pts: 69.7, h2h: 1, exiting: false },
+    ];
+
+    let teams = JSON.parse(JSON.stringify(INITIAL_26_STANDINGS));
+    let expansionTeams = []; // Section 3.7 new franchises entering Tier 3
+    let currentFilter = 'ALL';
+    let currentMode = 'inaugural'; // 'inaugural' | 'standard'
+    let lastSimulationResult = null;
+
+    const INAUGURAL_SLOT_ORDER = [
+      'inaug-champ',
+      'inaug-runnerup',
+      'inaug-sf1',
+      'inaug-sf2',
+      'inaug-qf1',
+      'inaug-qf2',
+      'inaug-qf3',
+      'inaug-qf4',
+      'inaug-r1-1',
+      'inaug-r1-2',
+      'inaug-r1-3',
+      'inaug-r1-4',
+    ];
+
+    const STANDARD_EXTRA_SLOT_ORDER = [
+      'std-sf1',
+      'std-sf2',
+      'std-qf1',
+      'std-qf2',
+      'std-qf3',
+      'std-qf4',
+      'std-r1-1',
+      'std-r1-2',
+      'std-r1-3',
+      'std-r1-4',
+    ];
+
+    // =========================================================================
+    // 2. TIEBREAKERS & HELPERS (Section 3.5)
+    // =========================================================================
+    function getWinPct(t) {
+      const total = (Number(t.w) || 0) + (Number(t.l) || 0);
+      return total === 0 ? 0 : (Number(t.w) || 0) / total;
+    }
+
+    function getCumulativeFantasyPoints(t) {
+      const val = Number(t.pts) || 0;
+      const gp = (Number(t.w) || 0) + (Number(t.l) || 0);
+      // If entered as FPPG (< 500), multiply by GP for cumulative points comparison; if already cumulative (>= 500), use directly
+      if (val < 500 && gp > 0) return val * gp;
+      return val;
+    }
+
+    function getPostseasonFinishRank(teamId) {
+      // Section 3.5(4): Champion (6) > Runner-Up (5) > Semifinalists (4) > Quarterfinalists (3) > 1st Round Exits (2) > Non-Playoff (1)
+      if (currentMode === 'inaugural') {
+        const getVal = (id) => parseInt(document.getElementById(id)?.value || '0', 10);
+        if (getVal('inaug-champ') === teamId) return 6;
+        if (getVal('inaug-runnerup') === teamId) return 5;
+        if ([getVal('inaug-sf1'), getVal('inaug-sf2')].includes(teamId)) return 4;
+        if ([getVal('inaug-qf1'), getVal('inaug-qf2'), getVal('inaug-qf3'), getVal('inaug-qf4')].includes(teamId)) return 3;
+        if ([getVal('inaug-r1-1'), getVal('inaug-r1-2'), getVal('inaug-r1-3'), getVal('inaug-r1-4')].includes(teamId)) return 2;
+        return 1;
+      } else {
+        const getVal = (id) => parseInt(document.getElementById(id)?.value || '0', 10);
+        if (getVal('select-champion') === teamId) return 6;
+        if (getVal('select-runnerup') === teamId) return 5;
+        if ([getVal('std-sf1'), getVal('std-sf2')].includes(teamId)) return 4;
+        if ([getVal('std-qf1'), getVal('std-qf2'), getVal('std-qf3'), getVal('std-qf4')].includes(teamId)) return 3;
+        if ([getVal('std-r1-1'), getVal('std-r1-2'), getVal('std-r1-3'), getVal('std-r1-4')].includes(teamId)) return 2;
+        return 1;
+      }
+    }
+
+    function compareTeamsByRecord(a, b) {
+      // 1. Overall regular-season winning percentage
+      const pctA = getWinPct(a);
+      const pctB = getWinPct(b);
+      if (Math.abs(pctB - pctA) > 1e-6) return pctB - pctA;
+
+      // 2. Total cumulative regular-season fantasy points
+      const ptsA = getCumulativeFantasyPoints(a);
+      const ptsB = getCumulativeFantasyPoints(b);
+      if (Math.abs(ptsB - ptsA) > 1e-4) return ptsB - ptsA;
+
+      // 3. Head-to-head regular-season record override
+      const h2hA = Number(a.h2h) || 0;
+      const h2hB = Number(b.h2h) || 0;
+      if (h2hB !== h2hA) return h2hB - h2hA;
+
+      // 4. Preceding postseason finish (Sec. 3.5(4))
+      const psA = getPostseasonFinishRank(a.id);
+      const psB = getPostseasonFinishRank(b.id);
+      if (psB !== psA) return psB - psA;
+
+      return a.id - b.id;
+    }
+
+    function getTierOfDiv(div) {
+      if (div === '1A' || div === '1B') return 1;
+      if (div === '2A' || div === '2B') return 2;
+      if (div === '3A' || div === '3B') return 3;
+      return 0;
+    }
+
+    function escapeHtml(str) {
+      return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function showToast(msg, isError = false) {
+      const toast = document.getElementById('toast');
+      const icon = document.getElementById('toast-icon');
+      const text = document.getElementById('toast-msg');
+      text.textContent = msg;
+      icon.textContent = isError ? '⚠' : '✓';
+      icon.className = isError ? 'text-rose-400 text-base' : 'text-emerald-400 text-base';
+      toast.classList.remove('hidden', 'translate-y-2', 'opacity-0');
+      setTimeout(() => {
+        toast.classList.add('translate-y-2', 'opacity-0');
+        setTimeout(() => toast.classList.add('hidden'), 300);
+      }, 2800);
+    }
+
+    // =========================================================================
+    // 3. STEP 1 TABLE & SECTION 3.7 ROSTER MANAGEMENT
+    // =========================================================================
+    function updateTeamField(id, field, value) {
+      const target = teams.find(t => t.id === id);
+      if (!target) return;
+      target[field] = value;
+
+      if (field === 'exiting' && value === true) {
+        clearTeamFromAllPlayoffDropdowns(id);
+      }
+
+      renderStandingsTable();
+      refreshDropdownLabelsPreservingValues();
+      runSimulation();
+    }
+
+    function addExpansionTeam() {
+      const input = document.getElementById('new-expansion-name');
+      const activeCount = teams.filter(t => !t.exiting).length;
+      const currentTotal = activeCount + expansionTeams.length;
+
+      if (expansionTeams.length >= 4) {
+        showToast('Article II limit: Maximum of 4 new expansion teams per season.', true);
+        return;
+      }
+      if (currentTotal >= 30) {
+        showToast('Article II cap: League size cannot exceed 30 teams.', true);
+        return;
+      }
+
+      const name = input.value.trim() || `Expansion Team #${expansionTeams.length + 1}`;
+      expansionTeams.push({
+        id: 5000 + Date.now() + expansionTeams.length,
+        name,
+        div: 'NEW',
+        w: 0,
+        l: 0,
+        pts: 0,
+        h2h: 0,
+        isExpansion: true
+      });
+      input.value = '';
+      renderExpansionChips();
+      updateDivisionCountPills();
+      runSimulation();
+      showToast(`Added "${name}" to Tier 3 expansion pool (Sec. 3.7).`);
+    }
+
+    function removeExpansionTeam(expId) {
+      expansionTeams = expansionTeams.filter(e => e.id !== expId);
+      renderExpansionChips();
+      updateDivisionCountPills();
+      runSimulation();
+    }
+
+    function renderExpansionChips() {
+      const container = document.getElementById('expansion-list-container');
+      const activeCount = teams.filter(t => !t.exiting).length;
+      const totalProjected = activeCount + expansionTeams.length;
+
+      document.getElementById('active-count-label').textContent = activeCount;
+      document.getElementById('expansion-count-label').textContent = expansionTeams.length;
+      document.getElementById('projected-total-label').textContent = `${totalProjected} / 30 max`;
+
+      if (expansionTeams.length === 0) {
+        container.classList.add('hidden');
+        container.innerHTML = '';
+        return;
+      }
+
+      container.classList.remove('hidden');
+      container.innerHTML = expansionTeams.map(ex => `
+        <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/15 border border-purple-500/40 text-xs font-semibold text-purple-200">
+          <span>+ ${escapeHtml(ex.name)} (Tier 3)</span>
+          <button onclick="removeExpansionTeam(${ex.id})" class="text-purple-400 hover:text-white font-bold">✕</button>
+        </span>
+      `).join('');
+    }
+
+    function filterTable(divCode) {
+      currentFilter = divCode;
+      document.querySelectorAll('.filter-btn').forEach(btn => {
+        if (btn.dataset.filter === divCode) {
+          btn.className = 'filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-500 text-slate-950 border border-amber-400';
+        } else {
+          btn.className = 'filter-btn px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-950 text-slate-400 hover:text-white border border-slate-800';
+        }
+      });
+      renderStandingsTable();
+    }
+
+    function renderStandingsTable() {
+      const tbody = document.getElementById('standings-tbody');
+      const thDiv = document.getElementById('th-current-div');
+      const filterBar = document.getElementById('div-filter-bar');
+      tbody.innerHTML = '';
+
+      const isInaugural = currentMode === 'inaugural';
+      const allUnassigned = teams.every(t => t.div === 'UNASSIGNED');
+
+      if (isInaugural && allUnassigned) {
+        thDiv.classList.add('hidden');
+        filterBar.classList.add('hidden');
+      } else {
+        thDiv.classList.remove('hidden');
+        filterBar.classList.remove('hidden');
+      }
+
+      const sortedTeams = [...teams].sort(compareTeamsByRecord);
+      const filtered = (isInaugural && allUnassigned) || currentFilter === 'ALL'
+        ? sortedTeams
+        : sortedTeams.filter(t => t.div === currentFilter);
+
+      filtered.forEach((t) => {
+        const globalRank = sortedTeams.findIndex(x => x.id === t.id) + 1;
+        const winPct = (getWinPct(t) * 100).toFixed(1) + '%';
+        const tr = document.createElement('tr');
+        tr.className = t.exiting
+          ? 'bg-rose-950/25 hover:bg-rose-950/35 transition'
+          : 'hover:bg-slate-800/40 transition';
+
+        const divCellHtml = (isInaugural && allUnassigned)
+          ? ''
+          : `<td class="py-2 px-3">
+              <select onchange="updateTeamField(${t.id}, 'div', this.value)"
+                class="w-full bg-slate-950/80 border ${t.div === 'UNASSIGNED' ? 'border-amber-500/40 text-amber-300' : 'border-slate-800 text-slate-200'} focus:border-amber-500 rounded-lg px-2 py-1.5 text-xs font-bold focus:outline-none">
+                <option value="UNASSIGNED" ${t.div === 'UNASSIGNED' ? 'selected' : ''}>Unassigned</option>
+                ${['1A','1B','2A','2B','3A','3B'].map(d => `<option value="${d}" ${t.div === d ? 'selected' : ''}>${d}</option>`).join('')}
+              </select>
+            </td>`;
+
+        tr.innerHTML = `
+          <td class="py-2 px-3 font-mono text-slate-400 font-semibold">${globalRank}</td>
+          <td class="py-2 px-3">
+            <input type="text" value="${escapeHtml(t.name)}"
+              onchange="updateTeamField(${t.id}, 'name', this.value)"
+              class="w-full bg-slate-950/80 border border-slate-800 focus:border-amber-500 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-white focus:outline-none" />
+          </td>
+          ${divCellHtml}
+          <td class="py-2 px-3">
+            <input type="number" min="0" max="82" value="${t.w}"
+              onchange="updateTeamField(${t.id}, 'w', parseInt(this.value, 10) || 0)"
+              class="w-full bg-slate-950/80 border border-slate-800 focus:border-amber-500 rounded-lg px-2 py-1.5 text-xs font-mono text-slate-200 focus:outline-none" />
+          </td>
+          <td class="py-2 px-3">
+            <input type="number" min="0" max="82" value="${t.l}"
+              onchange="updateTeamField(${t.id}, 'l', parseInt(this.value, 10) || 0)"
+              class="w-full bg-slate-950/80 border border-slate-800 focus:border-amber-500 rounded-lg px-2 py-1.5 text-xs font-mono text-slate-200 focus:outline-none" />
+          </td>
+          <td class="py-2 px-3 font-mono text-slate-400">${winPct}</td>
+          <td class="py-2 px-3">
+            <input type="number" step="0.1" value="${t.pts}"
+              onchange="updateTeamField(${t.id}, 'pts', parseFloat(this.value) || 0)"
+              class="w-full bg-slate-950/80 border border-slate-800 focus:border-amber-500 rounded-lg px-2 py-1.5 text-xs font-mono text-slate-200 focus:outline-none" />
+          </td>
+          <td class="py-2 px-3">
+            <input type="number" value="${t.h2h}"
+              onchange="updateTeamField(${t.id}, 'h2h', parseInt(this.value, 10) || 0)"
+              class="w-full bg-slate-950/80 border border-slate-800 focus:border-amber-500 rounded-lg px-2 py-1.5 text-xs font-mono text-slate-300 focus:outline-none" />
+          </td>
+          <td class="py-2 px-3">
+            <label class="inline-flex items-center gap-1.5 cursor-pointer select-none">
+              <input type="checkbox" ${t.exiting ? 'checked' : ''}
+                onchange="updateTeamField(${t.id}, 'exiting', this.checked)"
+                class="rounded border-slate-700 bg-slate-950 text-rose-500 focus:ring-rose-500" />
+              <span class="text-[11px] ${t.exiting ? 'text-rose-400 font-bold' : 'text-slate-400'}">
+                ${t.exiting ? 'Contraction Exit' : 'Active'}
+              </span>
+            </label>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      renderExpansionChips();
+      updateDivisionCountPills();
+    }
+
+    function updateDivisionCountPills() {
+      const container = document.getElementById('div-counts-pill');
+      const unassignedCount = teams.filter(t => t.div === 'UNASSIGNED').length;
+
+      if (unassignedCount > 0) {
+        container.innerHTML = `<span class="px-2.5 py-0.5 rounded-md border bg-amber-500/15 text-amber-300 border-amber-500/30 font-semibold">Unassigned Initial Standings: ${unassignedCount} / ${teams.length} Teams</span>`;
+        return;
+      }
+
+      const expected = { '1A': 3, '1B': 3, '2A': 4, '2B': 4, '3A': 6, '3B': 6 };
+      const counts = { '1A': 0, '1B': 0, '2A': 0, '2B': 0, '3A': 0, '3B': 0 };
+      teams.forEach(t => { if (counts[t.div] !== undefined) counts[t.div]++; });
+
+      container.innerHTML = Object.keys(expected).map(div => {
+        const ok = div === '3A' || div === '3B' ? counts[div] >= 4 : counts[div] === expected[div];
+        const cls = ok
+          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+          : 'bg-rose-500/15 text-rose-300 border-rose-500/40 font-bold';
+        return `<span class="px-2 py-0.5 rounded-md border ${cls}">${div}: ${counts[div]}</span>`;
+      }).join('');
+    }
+
+    // =========================================================================
+    // 4. PLAYOFF DROPDOWNS (Auto-Swap / Auto-Clear — Never Greyed Out!)
+    // =========================================================================
+    function buildOptionsHtml(includeBlank = true) {
+      const sorted = [...teams].filter(t => !t.exiting).sort(compareTeamsByRecord);
+      const blankOpt = includeBlank ? `<option value="">-- Select Team --</option>` : '';
+      return blankOpt + sorted.map(t => {
+        const divTag = t.div === 'UNASSIGNED' ? '' : `${t.div} · `;
+        return `<option value="${t.id}">${escapeHtml(t.name)} [${divTag}${t.w}-${t.l} · ${t.pts}]</option>`;
+      }).join('');
+    }
+
+    function populateAllPlayoffDropdowns(autoFillTop12 = true) {
+      const optionsHtml = buildOptionsHtml(true);
+      const sortedActive = [...teams].filter(t => !t.exiting).sort(compareTeamsByRecord);
+
+      INAUGURAL_SLOT_ORDER.forEach((slotId, idx) => {
+        const el = document.getElementById(slotId);
+        if (!el) return;
+        el.innerHTML = optionsHtml;
+        if (autoFillTop12 && sortedActive[idx]) {
+          el.value = String(sortedActive[idx].id);
+        }
+      });
+
+      const champEl = document.getElementById('select-champion');
+      const runnerEl = document.getElementById('select-runnerup');
+      champEl.innerHTML = buildOptionsHtml(false);
+      runnerEl.innerHTML = buildOptionsHtml(false);
+      if (autoFillTop12 && sortedActive[0]) champEl.value = String(sortedActive[0].id);
+      if (autoFillTop12 && sortedActive[1]) runnerEl.value = String(sortedActive[1].id);
+
+      STANDARD_EXTRA_SLOT_ORDER.forEach(slotId => {
+        const el = document.getElementById(slotId);
+        if (el) {
+          el.innerHTML = optionsHtml;
+          el.value = '';
+        }
+      });
+
+      updateStandardMetaText();
+    }
+
+    function refreshDropdownLabelsPreservingValues() {
+      const allIds = [...INAUGURAL_SLOT_ORDER, ...STANDARD_EXTRA_SLOT_ORDER, 'select-champion', 'select-runnerup'];
+      const saved = {};
+      allIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) saved[id] = el.value;
+      });
+
+      const optWithBlank = buildOptionsHtml(true);
+      const optNoBlank = buildOptionsHtml(false);
+
+      [...INAUGURAL_SLOT_ORDER, ...STANDARD_EXTRA_SLOT_ORDER].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+          el.innerHTML = optWithBlank;
+          el.value = saved[id] || '';
+        }
+      });
+
+      ['select-champion', 'select-runnerup'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+          el.innerHTML = optNoBlank;
+          if (saved[id]) el.value = saved[id];
+        }
+      });
+
+      updateStandardMetaText();
+    }
+
+    function clearTeamFromAllPlayoffDropdowns(teamId) {
+      const strId = String(teamId);
+      [...INAUGURAL_SLOT_ORDER, ...STANDARD_EXTRA_SLOT_ORDER].forEach(slotId => {
+        const el = document.getElementById(slotId);
+        if (el && el.value === strId) el.value = '';
+      });
+    }
+
+    function handlePlayoffPickChange(changedSlotId) {
+      const changedEl = document.getElementById(changedSlotId);
+      const chosenVal = changedEl.value;
+
+      if (chosenVal) {
+        INAUGURAL_SLOT_ORDER.forEach(otherId => {
+          if (otherId !== changedSlotId) {
+            const otherEl = document.getElementById(otherId);
+            if (otherEl && otherEl.value === chosenVal) {
+              otherEl.value = '';
+            }
+          }
+        });
+      }
+      runSimulation();
+    }
+
+    function handleStandardPickChange(changedId) {
+      const champEl = document.getElementById('select-champion');
+      const runnerEl = document.getElementById('select-runnerup');
+
+      if (champEl.value && champEl.value === runnerEl.value) {
+        const sortedActive = [...teams].filter(t => !t.exiting).sort(compareTeamsByRecord);
+        const fallback = sortedActive.find(t => String(t.id) !== champEl.value);
+        if (changedId === 'select-champion' && fallback) {
+          runnerEl.value = String(fallback.id);
+        } else if (changedId === 'select-runnerup' && fallback) {
+          champEl.value = String(fallback.id);
+        }
+      }
+
+      // Clear Champion & Runner-Up from optional lower postseason tiebreaker slots
+      STANDARD_EXTRA_SLOT_ORDER.forEach(slotId => {
+        const el = document.getElementById(slotId);
+        if (el && (el.value === champEl.value || el.value === runnerEl.value)) {
+          el.value = '';
+        }
+      });
+
+      updateStandardMetaText();
+      runSimulation();
+    }
+
+    function handleStandardExtraPickChange(changedSlotId) {
+      const changedEl = document.getElementById(changedSlotId);
+      const chosenVal = changedEl.value;
+      const champVal = document.getElementById('select-champion').value;
+      const runnerVal = document.getElementById('select-runnerup').value;
+
+      if (chosenVal) {
+        if (chosenVal === champVal || chosenVal === runnerVal) {
+          changedEl.value = '';
+        } else {
+          STANDARD_EXTRA_SLOT_ORDER.forEach(otherId => {
+            if (otherId !== changedSlotId) {
+              const otherEl = document.getElementById(otherId);
+              if (otherEl && otherEl.value === chosenVal) {
+                otherEl.value = '';
+              }
+            }
+          });
+        }
+      }
+      runSimulation();
+    }
+
+    function updateStandardMetaText() {
+      const champId = parseInt(document.getElementById('select-champion').value, 10);
+      const runnerId = parseInt(document.getElementById('select-runnerup').value, 10);
+      const champ = teams.find(t => t.id === champId);
+      const runner = teams.find(t => t.id === runnerId);
+
+      const champMeta = document.getElementById('champ-meta');
+      const runnerMeta = document.getElementById('runnerup-meta');
+
+      if (champ) {
+        const divInfo = champ.div === 'UNASSIGNED' ? 'Unassigned' : `Div ${champ.div} (Tier ${getTierOfDiv(champ.div)})`;
+        champMeta.textContent = `Current: ${divInfo} · Record: ${champ.w}-${champ.l} (${champ.pts} FPPG) → Locks into Division 1A`;
+      }
+      if (runner) {
+        const divInfo = runner.div === 'UNASSIGNED' ? 'Unassigned' : `Div ${runner.div} (Tier ${getTierOfDiv(runner.div)})`;
+        runnerMeta.textContent = `Current: ${divInfo} · Record: ${runner.w}-${runner.l} (${runner.pts} FPPG) → Placed in Conference B of earned tier`;
+      }
+    }
+
+    // =========================================================================
+    // 5. MODE SWITCHING & PRESETS
+    // =========================================================================
+    function setMode(mode) {
+      currentMode = mode;
+      const stdBtn = document.getElementById('mode-standard-btn');
+      const inBtn = document.getElementById('mode-inaugural-btn');
+      const stdInputs = document.getElementById('standard-playoff-inputs');
+      const inInputs = document.getElementById('inaugural-playoff-inputs');
+
+      if (mode === 'standard') {
+        stdBtn.className = 'px-3.5 py-2 rounded-lg text-xs font-bold transition bg-amber-500 text-slate-950';
+        inBtn.className = 'px-3.5 py-2 rounded-lg text-xs font-semibold transition text-slate-400 hover:text-white';
+        stdInputs.classList.remove('hidden');
+        inInputs.classList.add('hidden');
+      } else {
+        inBtn.className = 'px-3.5 py-2 rounded-lg text-xs font-bold transition bg-amber-500 text-slate-950';
+        stdBtn.className = 'px-3.5 py-2 rounded-lg text-xs font-semibold transition text-slate-400 hover:text-white';
+        inInputs.classList.remove('hidden');
+        stdInputs.classList.add('hidden');
+      }
+
+      renderStandingsTable();
+      runSimulation();
+    }
+
+    function resetToDefault26() {
+      teams = JSON.parse(JSON.stringify(INITIAL_26_STANDINGS));
+      expansionTeams = [];
+      currentFilter = 'ALL';
+      setMode('inaugural');
+      populateAllPlayoffDropdowns(true);
+      runSimulation();
+      showToast('Reset to exact 26-team standings in Inaugural Seeding mode (Sec. 3.6)');
+    }
+
+    function buildSampleAssigned26() {
+      const sorted = [...INITIAL_26_STANDINGS].sort(compareTeamsByRecord);
+      const divs = [
+        '1A','1B','1B','1A','1A','1B',
+        '2A','2B','2B','2A','2A','2B','2B','2A',
+        '3A','3B','3B','3A','3A','3B','3B','3A','3A','3B','3B','3A'
+      ];
+      return sorted.map((t, i) => ({ ...t, div: divs[i] }));
+    }
+
+    function loadPresetScenario(type) {
+      teams = buildSampleAssigned26();
+      expansionTeams = [];
+      currentFilter = 'ALL';
+      setMode('standard');
+      populateAllPlayoffDropdowns(false);
+
+      const champEl = document.getElementById('select-champion');
+      const runnerEl = document.getElementById('select-runnerup');
+
+      if (type === 'standard_run') {
+        const t1A = teams.filter(t => t.div === '1A').sort(compareTeamsByRecord);
+        const t1B = teams.filter(t => t.div === '1B').sort(compareTeamsByRecord);
+        champEl.value = String(t1A[0].id);
+        runnerEl.value = String(t1B[0].id);
+        showToast('Loaded Standard Run: Div 1A #1 Champion + Div 1B #1 Runner-Up');
+      } else if (type === 'cinderella') {
+        // Tier 3 #1 team wins League Championship; Tier 2 mid-table team finishes as Runner-Up
+        const t3Team = teams.filter(t => t.div === '3A').sort(compareTeamsByRecord)[0];
+        const t2Runner = teams.filter(t => t.div === '2A').sort(compareTeamsByRecord)[1];
+        champEl.value = String(t3Team.id);
+        runnerEl.value = String(t2Runner.id);
+        showToast('Loaded Cinderella Run: Tier 3 Champion (Sec. 3.3 Tier-3 Champ Adjustment) + Tier 2 Runner-Up (Conf B Separation)!');
+      } else if (type === 'tier1_squeeze') {
+        // 3rd-place team in Div 1A wins League Championship -> relegates 2nd-place team in Div 1A!
+        const t1A3rd = teams.filter(t => t.div === '1A').sort(compareTeamsByRecord)[2];
+        const t1B1st = teams.filter(t => t.div === '1B').sort(compareTeamsByRecord)[0];
+        champEl.value = String(t1A3rd.id);
+        runnerEl.value = String(t1B1st.id);
+        showToast('Loaded Tier 1 Squeeze: 3rd-Place Div 1A Champion stays in Tier 1, relegating 2nd-Place Div 1A (Sec. 3.2.2)!');
+      }
+
+      updateStandardMetaText();
+      runSimulation();
+    }
+
+    // =========================================================================
+    // 6. EXACT ARTICLE III CONSTITUTION ENGINE (SECTIONS 3.1 – 3.7)
+    // =========================================================================
+    function showValidationBanner(messages) {
+      const banner = document.getElementById('validation-banner');
+      if (!messages || messages.length === 0) {
+        banner.classList.add('hidden');
+        return;
+      }
+      banner.classList.remove('hidden');
+      banner.className = 'rounded-xl p-3.5 text-xs border bg-rose-950/40 border-rose-500/40 text-rose-200';
+      banner.innerHTML = `<strong class="font-bold text-rose-400">⚠ Action Required:</strong> ${messages.join(' ')}`;
+    }
+
+    function runSimulation() {
+      if (currentMode === 'inaugural') {
+        runInauguralSimulation();
+      } else {
+        runStandardOffseasonSimulation();
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // MODE A: SECTION 3.6 INAUGURAL PYRAMID SEEDING (END OF 2026–27 SEASON)
+    // -------------------------------------------------------------------------
+    function runInauguralSimulation() {
+      const picks = {};
+      const missingSlots = [];
+      INAUGURAL_SLOT_ORDER.forEach(slotId => {
+        const val = document.getElementById(slotId).value;
+        if (!val) missingSlots.push(slotId);
+        else picks[slotId] = parseInt(val, 10);
+      });
+
+      if (missingSlots.length > 0) {
+        showValidationBanner([`Select all 12 playoff finishers in Step 2 (${12 - missingSlots.length}/12 selected).`]);
+        return;
+      }
+
+      const uniqueIds = new Set(Object.values(picks));
+      if (uniqueIds.size !== 12) {
+        showValidationBanner(['All 12 playoff finishers must be unique teams.']);
+        return;
+      }
+
+      showValidationBanner([]);
+      const auditLog = [];
+      const activeTeams = teams.filter(t => !t.exiting);
+      const getT = (id) => activeTeams.find(t => t.id === id);
+
+      const champ = getT(picks['inaug-champ']);
+      const runner = getT(picks['inaug-runnerup']);
+      const sfs = [getT(picks['inaug-sf1']), getT(picks['inaug-sf2'])];
+      const qfs = [
+        getT(picks['inaug-qf1']),
+        getT(picks['inaug-qf2']),
+        getT(picks['inaug-qf3']),
+        getT(picks['inaug-qf4'])
+      ].sort(compareTeamsByRecord);
+      const r1s = [
+        getT(picks['inaug-r1-1']),
+        getT(picks['inaug-r1-2']),
+        getT(picks['inaug-r1-3']),
+        getT(picks['inaug-r1-4'])
+      ].sort(compareTeamsByRecord);
+
+      const nonPlayoff = activeTeams
+        .filter(t => !uniqueIds.has(t.id))
+        .sort(compareTeamsByRecord);
+
+      // Section 3.6 Tier 1 (6 Teams): Champion (1A) + Runner-Up (1B) + 2 SFs + Top 2 QFs
+      const tier1Final = [
+        { ...champ, newTier: 1, badge: 'CHAMPION (1A)', badgeColor: 'amber', reason: 'Section 3.6: League Champion → Division 1A.' },
+        { ...runner, newTier: 1, badge: 'RUNNER-UP (1B)', badgeColor: 'sky', reason: 'Section 3.6: Finals Runner-Up → Division 1B.' },
+        ...sfs.map(t => ({ ...t, newTier: 1, badge: 'SEMIFINALIST', badgeColor: 'emerald', reason: 'Section 3.6: Semifinalist → Tier 1.' })),
+        ...qfs.slice(0, 2).map(t => ({ ...t, newTier: 1, badge: 'TOP-2 QF', badgeColor: 'indigo', reason: 'Section 3.6: Top-2 Quarterfinalist by regular-season record → Tier 1.' }))
+      ];
+
+      // Section 3.6 Tier 2 (8 Teams): Remaining 2 QFs + All 4 R1 Exits + Top 2 Non-Playoff
+      const tier2Final = [
+        ...qfs.slice(2, 4).map(t => ({ ...t, newTier: 2, badge: 'QF SEED (T2)', badgeColor: 'indigo', reason: 'Section 3.6: Remaining Quarterfinalist → Tier 2.' })),
+        ...r1s.map(t => ({ ...t, newTier: 2, badge: 'ROUND 1 EXIT', badgeColor: 'slate', reason: 'Section 3.6: 1st-Round Playoff Exit → Tier 2.' })),
+        ...nonPlayoff.slice(0, 2).map(t => ({ ...t, newTier: 2, badge: 'TOP NON-PLAYOFF', badgeColor: 'emerald', reason: 'Section 3.6: Top-2 Non-Playoff team by record → Tier 2.' }))
+      ];
+
+      // Section 3.6 + 3.7 Tier 3: Remaining Non-Playoff + Any Expansion Franchises
+      const expFormatted = expansionTeams.map(ex => ({
+        ...ex,
+        newTier: 3,
+        badge: 'EXPANSION (T3)',
+        badgeColor: 'purple',
+        reason: 'Section 3.7: New expansion franchise enters Tier 3.'
+      }));
+
+      const tier3Final = [
+        ...nonPlayoff.slice(2).map(t => ({ ...t, newTier: 3, badge: 'TIER 3 SEED', badgeColor: 'slate', reason: 'Section 3.6: Remaining Non-Playoff team → Tier 3.' })),
+        ...expFormatted
+      ];
+
+      auditLog.push(`Section 3.6 Inaugural Tier Seeding: Placed Champion (${champ.name} → 1A), Runner-Up (${runner.name} → 1B), 2 Semifinalists, and top 2 Quarterfinalists (${qfs[0].name}, ${qfs[1].name}) into Tier 1.`);
+      auditLog.push(`Section 3.6 Tier 2 & 3 Split: Placed remaining 2 Quarterfinalists, 4 Round-1 exits, and top 2 Non-Playoff teams (${nonPlayoff[0].name}, ${nonPlayoff[1].name}) into Tier 2; remaining ${tier3Final.length} teams placed in Tier 3.`);
+
+      const divisions = snakeSplitWithFinalsSeparation(tier1Final, tier2Final, tier3Final, champ.id, runner.id, auditLog);
+      lastSimulationResult = {
+        divisions,
+        auditLog,
+        triggeredClauses: ['Sec. 3.6 Inaugural Seeding', 'Sec. 3.4 Finals Separation', ...(expansionTeams.length > 0 ? ['Sec. 3.7 Expansion'] : [])]
+      };
+      renderSimulationResults(lastSimulationResult);
+    }
+
+    // -------------------------------------------------------------------------
+    // MODE B: SECTIONS 3.2 – 3.4 & 3.7 STANDARD OFFSEASON MOVEMENT
+    // -------------------------------------------------------------------------
+    function runStandardOffseasonSimulation() {
+      const unassignedCount = teams.filter(t => t.div === 'UNASSIGNED').length;
+      if (unassignedCount > 0) {
+        showValidationBanner([`${unassignedCount} teams have Unassigned divisions. Use Mode A (Inaugural Seeding) first and click "Lock & Promote to Standard Offseason ↑", or assign divisions 1A–3B in Step 1.`]);
+        return;
+      }
+
+      const expected = { '1A': 3, '1B': 3, '2A': 4, '2B': 4 };
+      const counts = { '1A': 0, '1B': 0, '2A': 0, '2B': 0, '3A': 0, '3B': 0 };
+      teams.forEach(t => { if (counts[t.div] !== undefined) counts[t.div]++; });
+
+      const divErrors = [];
+      Object.keys(expected).forEach(d => {
+        if (counts[d] !== expected[d]) {
+          divErrors.push(`Division ${d} currently has ${counts[d]} teams (requires ${expected[d]}).`);
+        }
+      });
+      if (counts['3A'] < 4 || counts['3B'] < 4) {
+        divErrors.push(`Divisions 3A and 3B require at least 4 teams each.`);
+      }
+      if (divErrors.length > 0) {
+        showValidationBanner(divErrors);
+        return;
+      }
+
+      const champId = parseInt(document.getElementById('select-champion').value, 10);
+      const runnerId = parseInt(document.getElementById('select-runnerup').value, 10);
+
+      if (!champId || !runnerId || champId === runnerId) {
+        showValidationBanner(['Select two distinct active teams as League Champion and Finals Runner-Up.']);
+        return;
+      }
+
+      const champTeam = teams.find(t => t.id === champId);
+      const runnerTeam = teams.find(t => t.id === runnerId);
+      if (!champTeam || !runnerTeam || champTeam.exiting || runnerTeam.exiting) {
+        showValidationBanner(['Champion and Runner-Up must be active (non-exiting) franchises.']);
+        return;
+      }
+
+      showValidationBanner([]);
+
+      const auditLog = [];
+      const triggeredClauses = new Set(['Sec. 3.2(1) Champion Protection', 'Sec. 3.4 Finals Separation']);
+
+      const exitingTeams = teams.filter(t => t.exiting);
+      const activeTeams = teams.filter(t => !t.exiting).map(t => ({ ...t }));
+
+      if (exitingTeams.length > 0) {
+        triggeredClauses.add('Sec. 3.7 Contraction');
+        auditLog.push(`Section 3.7 Contraction: ${exitingTeams.map(e => `"${e.name}" (${e.div})`).join(', ')} exited without replacement. Vacancies absorbed from the bottom up so Tier 1 (6) and Tier 2 (8) remain full.`);
+      }
+      if (expansionTeams.length > 0) {
+        triggeredClauses.add('Sec. 3.7 Expansion');
+        auditLog.push(`Section 3.7 Expansion: ${expansionTeams.map(e => `"${e.name}"`).join(', ')} added directly to Tier 3.`);
+      }
+
+      const isChamp = (t) => t.id === champId;
+      const champOriginTier = getTierOfDiv(champTeam.div);
+
+      // -----------------------------------------------------------------------
+      // SECTION 3.2: TIER 1 PLACEMENT (6 TEAMS)
+      // -----------------------------------------------------------------------
+      const tier1Final = [];
+      const tier1DroppedToTier2 = [];
+
+      // 1. Champion Protection -> Always Division 1A
+      tier1Final.push({
+        ...champTeam,
+        newTier: 1,
+        badge: 'CHAMPION (1A)',
+        badgeColor: 'amber',
+        reason: `Section 3.2(1) & 3.4(1): League Champion (from ${champTeam.div}) guaranteed Tier 1 and placed in Division 1A.`
+      });
+      auditLog.push(`Section 3.2(1) Champion Protection: "${champTeam.name}" (from ${champTeam.div}) locked into Tier 1 (Division 1A). Runner-Up "${runnerTeam.name}" (${runnerTeam.div}) receives no tier immunity and competes in Tier ${getTierOfDiv(runnerTeam.div)} merit rules.`);
+
+      // 2. Retention & Relegation (Section 3.2(2))
+      ['1A', '1B'].forEach(divCode => {
+        const allInDivSorted = teams.filter(t => t.div === divCode).sort(compareTeamsByRecord);
+        const activeInDivSorted = activeTeams.filter(t => t.div === divCode).sort(compareTeamsByRecord);
+        const nonChampsActive = activeInDivSorted.filter(t => !isChamp(t));
+
+        const original3rd = allInDivSorted[2];
+        const champWasOriginal3rd = original3rd && original3rd.id === champId;
+
+        if (champWasOriginal3rd && nonChampsActive.length >= 2) {
+          triggeredClauses.add('Sec. 3.2(2) 3rd-Place Champ Squeeze');
+          const survivor = nonChampsActive[0];
+          const squeezed = nonChampsActive[1];
+          tier1Final.push({
+            ...survivor,
+            newTier: 1,
+            badge: 'RETAINED (T1)',
+            badgeColor: 'emerald',
+            reason: `Section 3.2(2): Retained Tier 1 status as top finisher in ${divCode}.`
+          });
+          tier1DroppedToTier2.push({
+            ...squeezed,
+            newTier: 2,
+            badge: 'SQUEEZED DROP (T1→T2)',
+            badgeColor: 'rose',
+            reason: `Section 3.2(2): Relegated from ${divCode} because 3rd-place "${champTeam.name}" won the League Championship.`
+          });
+          auditLog.push(`Section 3.2(2) Tier 1 Squeeze (${divCode}): 3rd-place "${champTeam.name}" won the title and stayed up, relegating 2nd-place "${squeezed.name}" to Tier 2.`);
+        } else {
+          const keepCount = Math.min(2, nonChampsActive.length);
+          for (let i = 0; i < keepCount; i++) {
+            tier1Final.push({
+              ...nonChampsActive[i],
+              newTier: 1,
+              badge: 'RETAINED (T1)',
+              badgeColor: 'emerald',
+              reason: `Section 3.2(2): Retained Tier 1 status (Top-2 finisher in ${divCode}).`
+            });
+          }
+          if (nonChampsActive.length > 2) {
+            const dropped = nonChampsActive[2];
+            tier1DroppedToTier2.push({
+              ...dropped,
+              newTier: 2,
+              badge: 'RELEGATED (T1→T2)',
+              badgeColor: 'rose',
+              reason: `Section 3.2(2): 3rd-place finisher in ${divCode}; relegated to Tier 2.`
+            });
+            auditLog.push(`Section 3.2(2) Tier 1 Relegation (${divCode}): "${dropped.name}" relegated to Tier 2.`);
+          }
+        }
+      });
+
+      // 3. Incoming Promotions (2 Slots) + Section 3.7 Contraction Pull-Up
+      const openTier1Slots = 6 - tier1Final.length;
+      const div2AStandings = activeTeams.filter(t => t.div === '2A').sort(compareTeamsByRecord);
+      const div2BStandings = activeTeams.filter(t => t.div === '2B').sort(compareTeamsByRecord);
+
+      const div2AWinner = div2AStandings[0] || null;
+      const div2BWinner = div2BStandings[0] || null;
+      const div2Winners = [div2AWinner, div2BWinner].filter(Boolean).sort(compareTeamsByRecord);
+
+      const otherActiveTier2 = activeTeams
+        .filter(t => (t.div === '2A' || t.div === '2B') && !div2Winners.some(w => w.id === t.id))
+        .sort(compareTeamsByRecord);
+
+      const tier2PromotionCandidates = [...div2Winners, ...otherActiveTier2].filter(t => !isChamp(t));
+
+      if (champOriginTier !== 1) {
+        triggeredClauses.add('Sec. 3.2(3) Incoming Promotion Cap');
+      }
+
+      const promotedToTier1 = [];
+      for (let i = 0; i < openTier1Slots && i < tier2PromotionCandidates.length; i++) {
+        const promo = tier2PromotionCandidates[i];
+        const isDivWin = div2Winners.some(w => w.id === promo.id);
+        let badge = isDivWin ? `PROMOTED (${promo.div} #1)` : 'CONTRACTION PULL-UP';
+        let reason = isDivWin
+          ? `Section 3.2(3): Promoted to Tier 1 as ${promo.div} regular-season champion.`
+          : `Section 3.7: Pulled up to Tier 1 to absorb franchise contraction.`;
+
+        if (champOriginTier !== 1 && i === 0 && isDivWin) {
+          reason = `Section 3.2(3): Claimed the sole remaining Tier 1 promotion slot over the other Tier 2 division winner via superior record (${promo.w}-${promo.l}).`;
+        }
+
+        const promoObj = {
+          ...promo,
+          newTier: 1,
+          badge,
+          badgeColor: 'indigo',
+          reason
+        };
+        tier1Final.push(promoObj);
+        promotedToTier1.push(promoObj);
+      }
+
+      div2Winners.forEach(w => {
+        if (!isChamp(w) && !promotedToTier1.some(p => p.id === w.id)) {
+          auditLog.push(`Section 3.2(3) Promotion Cap: "${w.name}" (${w.div} #1, ${w.w}-${w.l}) was displaced from Tier 1 promotion because non-Tier-1 Champion "${champTeam.name}" claimed one of the two incoming Tier 1 slots.`);
+        }
+      });
+
+      promotedToTier1.forEach(p => {
+        auditLog.push(`Tier 2 → Tier 1 Promotion: "${p.name}" promoted to Tier 1 (${p.reason})`);
+      });
+
+      // -----------------------------------------------------------------------
+      // SECTION 3.3(2): TIER 2 → TIER 3 RELEGATION (DIVISION FLOOR + WILDCARD)
+      // -----------------------------------------------------------------------
+      const autoRelegatedFromTier2Ids = new Set();
+      const autoRelegatedList = [];
+
+      ['2A', '2B'].forEach(divCode => {
+        const allInDiv2 = teams.filter(t => t.div === divCode).sort(compareTeamsByRecord);
+        const activeEligibleInDiv2 = activeTeams
+          .filter(t => t.div === divCode && !isChamp(t) && !promotedToTier1.some(p => p.id === t.id))
+          .sort(compareTeamsByRecord);
+
+        const original4th = allInDiv2[3];
+        const original4thWonTitle = original4th && original4th.id === champId;
+
+        if (activeEligibleInDiv2.length > 0) {
+          const floorVictim = activeEligibleInDiv2[activeEligibleInDiv2.length - 1];
+          autoRelegatedFromTier2Ids.add(floorVictim.id);
+          autoRelegatedList.push({
+            ...floorVictim,
+            newTier: 3,
+            badge: original4thWonTitle ? '3RD-PLACE FLOOR DROP' : `RELEGATED (${divCode} #4)`,
+            badgeColor: 'rose',
+            reason: original4thWonTitle
+              ? `Section 3.3(2): 4th-place "${champTeam.name}" won the title, relegating 3rd-place finisher in ${divCode} in their stead.`
+              : `Section 3.3(2): Automatic division floor relegation (last place in ${divCode}).`
+          });
+        }
+      });
+
+      const remainingTier2Pool = activeTeams
+        .filter(t => (t.div === '2A' || t.div === '2B') && !isChamp(t) && !promotedToTier1.some(p => p.id === t.id) && !autoRelegatedFromTier2Ids.has(t.id))
+        .sort(compareTeamsByRecord);
+
+      const tier2ExitsCount = exitingTeams.filter(e => getTierOfDiv(e.div) === 2).length;
+      const wildcardRelegationsNeeded = Math.max(0, 1 - tier2ExitsCount);
+
+      const wildcardRelegatedList = remainingTier2Pool
+        .slice(remainingTier2Pool.length - wildcardRelegationsNeeded)
+        .map(t => ({
+          ...t,
+          newTier: 3,
+          badge: 'WILDCARD DROP (T2→T3)',
+          badgeColor: 'rose',
+          reason: `Section 3.3(2): Global wildcard relegation (lowest remaining Tier 2 record: ${t.w}-${t.l}).`
+        }));
+
+      const relegatedToTier3 = [...autoRelegatedList, ...wildcardRelegatedList];
+      const retainedInTier2 = remainingTier2Pool
+        .slice(0, remainingTier2Pool.length - wildcardRelegationsNeeded)
+        .map(t => {
+          const wasBlockedWinner = div2Winners.some(w => w.id === t.id);
+          return {
+            ...t,
+            newTier: 2,
+            badge: wasBlockedWinner ? 'PROMO CAPPED (T2)' : 'RETAINED (T2)',
+            badgeColor: wasBlockedWinner ? 'amber' : 'slate',
+            reason: wasBlockedWinner
+              ? `Section 3.2(3): Won ${t.div} regular season, but displaced from Tier 1 promotion by non-Tier-1 League Champion.`
+              : `Retained Tier 2 status.`
+          };
+        });
+
+      auditLog.push(`Section 3.3(2) Tier 2 → Tier 3 Relegation: ${relegatedToTier3.map(t => `"${t.name}" [${t.badge}]`).join(', ')} relegated to Tier 3.`);
+
+      // -----------------------------------------------------------------------
+      // SECTION 3.3(1): TIER 3 → TIER 2 PROMOTION (DIV WINNERS + CONDITIONAL WILDCARD)
+      // -----------------------------------------------------------------------
+      const autoPromotedFromTier3Ids = new Set();
+      const autoPromotedTier3List = [];
+
+      ['3A', '3B'].forEach(divCode => {
+        const allInDiv3 = teams.filter(t => t.div === divCode).sort(compareTeamsByRecord);
+        const activeEligibleInDiv3 = activeTeams
+          .filter(t => t.div === divCode && !isChamp(t))
+          .sort(compareTeamsByRecord);
+
+        const original1st = allInDiv3[0];
+        const original1stWonTitle = original1st && original1st.id === champId;
+
+        if (activeEligibleInDiv3.length > 0) {
+          const divChampPromote = activeEligibleInDiv3[0];
+          autoPromotedFromTier3Ids.add(divChampPromote.id);
+          autoPromotedTier3List.push({
+            ...divChampPromote,
+            newTier: 2,
+            badge: original1stWonTitle ? `2ND-PLACE PROMO (${divCode})` : `PROMOTED (${divCode} #1)`,
+            badgeColor: 'indigo',
+            reason: original1stWonTitle
+              ? `Section 3.3(1): 1st-place "${champTeam.name}" vaulted to Tier 1 as Champion; 2nd-place finisher claims ${divCode} automatic promotion.`
+              : `Section 3.3(1): Automatic promotion as ${divCode} regular-season champion.`
+          });
+        }
+      });
+
+      const remainingTier3Pool = activeTeams
+        .filter(t => (t.div === '3A' || t.div === '3B') && !isChamp(t) && !autoPromotedFromTier3Ids.has(t.id))
+        .sort(compareTeamsByRecord);
+
+      const currentTier2PreWildcard = tier1DroppedToTier2.length + retainedInTier2.length + autoPromotedTier3List.length;
+      const tier3WildcardsNeeded = Math.max(0, 8 - currentTier2PreWildcard);
+
+      if (champOriginTier === 3) {
+        triggeredClauses.add('Sec. 3.3(1) Tier-3 Champ Adjustment (+0 WC)');
+        auditLog.push(`Section 3.3(1) Tier 3 Champion Adjustment: Because Tier 3 team "${champTeam.name}" vaulted directly into Tier 1 as Champion, 0 global wildcard promotions occur from Tier 3—only ${autoPromotedTier3List.map(t => `"${t.name}"`).join(' & ')} promote to Tier 2, keeping Tier 2 at 8 teams.`);
+      } else {
+        auditLog.push(`Section 3.3(1) Tier 3 → Tier 2 Promotion: Division champions ${autoPromotedTier3List.map(t => `"${t.name}"`).join(' & ')} plus ${tier3WildcardsNeeded} global wildcard(s) promoted to Tier 2.`);
+      }
+
+      const wildcardPromotedTier3List = remainingTier3Pool.slice(0, tier3WildcardsNeeded).map((t, idx) => ({
+        ...t,
+        newTier: 2,
+        badge: idx === 0 && champOriginTier !== 3 ? 'WILDCARD PROMO (T3→T2)' : 'CONTRACTION PULL-UP',
+        badgeColor: 'indigo',
+        reason: idx === 0 && champOriginTier !== 3
+          ? `Section 3.3(1): Global wildcard promotion (highest remaining Tier 3 record: ${t.w}-${t.l}).`
+          : `Section 3.7: Pulled up to Tier 2 to absorb franchise contraction.`
+      }));
+
+      const promotedToTier2 = [...autoPromotedTier3List, ...wildcardPromotedTier3List];
+      const stayingTier3 = remainingTier3Pool.slice(tier3WildcardsNeeded).map(t => ({
+        ...t,
+        newTier: 3,
+        badge: 'RETAINED (T3)',
+        badgeColor: 'slate',
+        reason: 'Retained Tier 3 status.'
+      }));
+
+      const expFormatted = expansionTeams.map(ex => ({
+        ...ex,
+        newTier: 3,
+        badge: 'EXPANSION (T3)',
+        badgeColor: 'purple',
+        reason: 'Section 3.7: Brand-new expansion franchise enters Tier 3.'
+      }));
+
+      // -----------------------------------------------------------------------
+      // SECTION 3.4: ASSEMBLE TIER POOLS & SNAKE-SEED WITH FINALS SEPARATION
+      // -----------------------------------------------------------------------
+      const tier2Final = [...tier1DroppedToTier2, ...retainedInTier2, ...promotedToTier2];
+      const tier3Final = [...relegatedToTier3, ...stayingTier3, ...expFormatted];
+
+      const divisions = snakeSplitWithFinalsSeparation(tier1Final, tier2Final, tier3Final, champId, runnerId, auditLog);
+
+      lastSimulationResult = {
+        divisions,
+        auditLog,
+        triggeredClauses: Array.from(triggeredClauses)
+      };
+      renderSimulationResults(lastSimulationResult);
+    }
+
+    // -------------------------------------------------------------------------
+    // SECTION 3.4: CONFERENCE ASSIGNMENT & FINALS SEPARATION
+    // -------------------------------------------------------------------------
+    function snakeSplitWithFinalsSeparation(tier1Pool, tier2Pool, tier3Pool, champId, runnerId, auditLog) {
+      // 1. Tier 1 Snake Assignment (Section 3.4(2)):
+      // Champion -> always 1A.
+      // If Runner-Up is in Tier 1 -> Runner-Up in 1B; rank remaining 4 (#1..#4): #1 & #4 -> 1B, #2 & #3 -> 1A.
+      // If Runner-Up is NOT in Tier 1 -> Champion in 1A; rank remaining 5 (#1..#5): #1, #4, #5 -> 1B; #2, #3 -> 1A.
+      const champ = tier1Pool.find(t => t.id === champId);
+      const runnerInT1 = tier1Pool.find(t => t.id === runnerId);
+      const otherT1 = tier1Pool
+        .filter(t => t.id !== champId && t.id !== runnerId)
+        .sort(compareTeamsByRecord);
+
+      let div1A = [];
+      let div1B = [];
+
+      if (runnerInT1) {
+        div1A = [
+          { ...champ, snakeSeed: 'Champ (1A)' },
+          ...(otherT1[1] ? [{ ...otherT1[1], snakeSeed: 'T1 Rem #2' }] : []),
+          ...(otherT1[2] ? [{ ...otherT1[2], snakeSeed: 'T1 Rem #3' }] : []),
+        ];
+        div1B = [
+          { ...runnerInT1, snakeSeed: 'Runner-Up (1B)' },
+          ...(otherT1[0] ? [{ ...otherT1[0], snakeSeed: 'T1 Rem #1' }] : []),
+          ...(otherT1[3] ? [{ ...otherT1[3], snakeSeed: 'T1 Rem #4' }] : []),
+        ];
+      } else {
+        div1A = [
+          { ...champ, snakeSeed: 'Champ (1A)' },
+          ...(otherT1[1] ? [{ ...otherT1[1], snakeSeed: 'T1 Rem #2' }] : []),
+          ...(otherT1[2] ? [{ ...otherT1[2], snakeSeed: 'T1 Rem #3' }] : []),
+        ];
+        div1B = [
+          ...(otherT1[0] ? [{ ...otherT1[0], snakeSeed: 'T1 Rem #1' }] : []),
+          ...(otherT1[3] ? [{ ...otherT1[3], snakeSeed: 'T1 Rem #4' }] : []),
+          ...(otherT1[4] ? [{ ...otherT1[4], snakeSeed: 'T1 Rem #5' }] : []),
+        ];
+      }
+
+      // 2. Helper for Tier 2 & Tier 3 Snake Assignment with Runner-Up Conference B Swap (Section 3.4(2))
+      function snakeTierWithRunnerUpCheck(pool, tierLabel) {
+        const sorted = [...pool].sort(compareTeamsByRecord);
+        // Standard snake pattern: #1, #4, #5, #8, #9, #12 -> Conf A; #2, #3, #6, #7, #10, #11 -> Conf B
+        const assignments = sorted.map((t, idx) => ({
+          ...t,
+          snakeSeed: `${tierLabel} #${idx + 1}`,
+          conf: (idx % 4 === 0 || idx % 4 === 3) ? 'A' : 'B'
+        }));
+
+        const runnerIdx = assignments.findIndex(t => t.id === runnerId);
+        if (runnerIdx !== -1) {
+          if (assignments[runnerIdx].conf === 'A') {
+            // Swap conference slot with adjacent seed (#1<->#2, #4<->#3, #5<->#6, #8<->#7, #9<->#10, #12<->#11)
+            const swapIdx = (runnerIdx % 4 === 0) ? runnerIdx + 1 : runnerIdx - 1;
+            const validSwapIdx = (swapIdx >= 0 && swapIdx < assignments.length)
+              ? swapIdx
+              : (runnerIdx - 1 >= 0 ? runnerIdx - 1 : -1);
+
+            if (validSwapIdx !== -1) {
+              assignments[runnerIdx].conf = 'B';
+              assignments[validSwapIdx].conf = 'A';
+              assignments[runnerIdx].badge = 'RUNNER-UP (CONF B)';
+              assignments[runnerIdx].badgeColor = 'sky';
+              auditLog.push(`Section 3.4(1) & 3.4(2) Finals Separation: Finals Runner-Up "${assignments[runnerIdx].name}" (${tierLabel}) swapped conference slots with adjacent seed "${assignments[validSwapIdx].name}" so the Runner-Up resides in Conference B opposite Champion "${champ.name}" in Conference A.`);
+            }
+          } else {
+            assignments[runnerIdx].badge = 'RUNNER-UP (CONF B)';
+            assignments[runnerIdx].badgeColor = 'sky';
+            auditLog.push(`Section 3.4(1) Finals Separation: Finals Runner-Up "${assignments[runnerIdx].name}" naturally landed in Conference B (${tierLabel.replace('T','')}B) opposite Champion "${champ.name}" in Conference A.`);
+          }
+        }
+
+        return {
+          confA: assignments.filter(t => t.conf === 'A'),
+          confB: assignments.filter(t => t.conf === 'B')
+        };
+      }
+
+      const t2Split = snakeTierWithRunnerUpCheck(tier2Pool, 'T2');
+      const t3Split = snakeTierWithRunnerUpCheck(tier3Pool, 'T3');
+
+      auditLog.push(`Section 3.4 Conference Snake-Seeding: Balanced Tier 1 (${div1A.length}/${div1B.length}), Tier 2 (${t2Split.confA.length}/${t2Split.confB.length}), and Tier 3 (${t3Split.confA.length}/${t3Split.confB.length}) across Conference A and Conference B.`);
+
+      return {
+        '1A': div1A,
+        '1B': div1B,
+        '2A': t2Split.confA,
+        '2B': t2Split.confB,
+        '3A': t3Split.confA,
+        '3B': t3Split.confB
+      };
+    }
+
+    // =========================================================================
+    // 7. RENDER OUTPUT CARDS & AUDIT LOG
+    // =========================================================================
+    function getBadgeClasses(color) {
+      const map = {
+        amber: 'bg-amber-500/20 text-amber-300 border-amber-500/40',
+        sky: 'bg-sky-500/20 text-sky-300 border-sky-500/40',
+        emerald: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
+        indigo: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40',
+        rose: 'bg-rose-500/20 text-rose-300 border-rose-500/40',
+        purple: 'bg-purple-500/20 text-purple-300 border-purple-500/40',
+        slate: 'bg-slate-800 text-slate-300 border-slate-700',
+      };
+      return map[color] || map.slate;
+    }
+
+    function renderDivisionCard(divCode, title, teamList) {
+      const byeOdds = teamList.length > 0 ? ((1 / teamList.length) * 100).toFixed(1) + '%' : '0%';
+      return `
+        <div class="bg-slate-950 border border-slate-800 rounded-xl p-3.5">
+          <div class="flex items-center justify-between mb-2.5">
+            <div class="flex items-center gap-2">
+              <span class="px-2 py-0.5 rounded bg-slate-800 text-white font-extrabold text-xs">${divCode}</span>
+              <h4 class="text-xs sm:text-sm font-bold text-slate-200">${title}</h4>
+            </div>
+            <span class="text-[11px] font-mono text-slate-400">${teamList.length} Teams · ${byeOdds} Div Win Odds</span>
+          </div>
+          <div class="divide-y divide-slate-800/70">
+            ${teamList.map((t, i) => {
+              const originStr = t.div === 'NEW'
+                ? 'NEW'
+                : (t.div === 'UNASSIGNED' ? `${t.w}-${t.l}` : `from ${t.div} · ${t.w}-${t.l}`);
+              return `
+              <div class="py-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5" title="${escapeHtml(t.reason)}">
+                <div class="flex items-center gap-2 min-w-0">
+                  <span class="text-[11px] font-mono text-slate-500 w-4">${i + 1}.</span>
+                  <div class="truncate">
+                    <span class="text-xs font-bold text-white truncate">${escapeHtml(t.name)}</span>
+                    <span class="text-[11px] text-slate-400 ml-1.5 font-mono">(${originStr})</span>
+                  </div>
+                </div>
+                <div class="flex items-center gap-1.5 shrink-0 pl-6 sm:pl-0">
+                  <span class="text-[10px] font-mono text-slate-400 bg-slate-900 px-1.5 py-0.5 rounded border border-slate-800">${t.snakeSeed}</span>
+                  <span class="text-[10px] font-bold px-2 py-0.5 rounded-full border ${getBadgeClasses(t.badgeColor)}">${t.badge}</span>
+                </div>
+              </div>
+            `;
+            }).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderSimulationResults(result) {
+      const { divisions, auditLog, triggeredClauses } = result;
+
+      document.getElementById('conf-a-count-badge').textContent =
+        `${divisions['1A'].length} – ${divisions['2A'].length} – ${divisions['3A'].length}`;
+      document.getElementById('conf-b-count-badge').textContent =
+        `${divisions['1B'].length} – ${divisions['2B'].length} – ${divisions['3B'].length}`;
+
+      document.getElementById('conf-a-cards').innerHTML =
+        renderDivisionCard('1A', 'Division 1A (Premier)', divisions['1A']) +
+        renderDivisionCard('2A', 'Division 2A (Contenders)', divisions['2A']) +
+        renderDivisionCard('3A', 'Division 3A (The Grind)', divisions['3A']);
+
+      document.getElementById('conf-b-cards').innerHTML =
+        renderDivisionCard('1B', 'Division 1B (Premier)', divisions['1B']) +
+        renderDivisionCard('2B', 'Division 2B (Contenders)', divisions['2B']) +
+        renderDivisionCard('3B', 'Division 3B (The Grind)', divisions['3B']);
+
+      const badgesEl = document.getElementById('triggered-badges');
+      badgesEl.innerHTML = triggeredClauses.map(c =>
+        `<span class="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/15 text-amber-300 border border-amber-500/30">${escapeHtml(c)}</span>`
+      ).join('');
+
+      const logList = document.getElementById('audit-log-list');
+      logList.innerHTML = auditLog.map(entry => `
+        <li class="flex items-start gap-2 bg-slate-950/70 border border-slate-800/80 rounded-lg px-3 py-2">
+          <span class="text-amber-400 font-bold mt-0.5">•</span>
+          <span>${escapeHtml(entry)}</span>
+        </li>
+      `).join('');
+    }
+
+    // =========================================================================
+    // 8. BULK PASTE PARSER, PROMOTE OUTPUT & EXPORT UTILITIES
+    // =========================================================================
+    function openBulkModal() {
+      const sorted = [...teams].sort(compareTeamsByRecord);
+      const sample = sorted.map(t =>
+        t.div === 'UNASSIGNED'
+          ? `${t.name}, 1, ${t.w}, ${t.l}, ${t.pts}`
+          : `${t.name}, ${t.div}, ${t.w}, ${t.l}, ${t.pts}`
+      ).join('\n');
+      document.getElementById('bulk-textarea').value = sample;
+      document.getElementById('bulk-error').classList.add('hidden');
+      document.getElementById('bulk-modal').classList.remove('hidden');
+    }
+
+    function fillSampleSportsWsInModal() {
+      const sample = INITIAL_26_STANDINGS
+        .map(t => `${t.name}, 1, ${t.w}, ${t.l}, ${t.pts.toFixed(1)}`)
+        .join('\n');
+      document.getElementById('bulk-textarea').value = sample;
+      document.getElementById('bulk-error').classList.add('hidden');
+    }
+
+    function closeBulkModal() {
+      document.getElementById('bulk-modal').classList.add('hidden');
+    }
+
+    function parseStandingsLine(rawLine) {
+      let line = rawLine.replace(/^\s*(?:#?\d+[.)]\s*)/, '').trim();
+      const validDivs = new Set(['1A', '1B', '2A', '2B', '3A', '3B']);
+
+      if (/[\t,|]/.test(line)) {
+        const parts = line.split(/[\t,|]/).map(p => p.trim()).filter(Boolean);
+        if (parts.length >= 2) {
+          const name = parts[0];
+          const col1Upper = parts[1].toUpperCase();
+
+          // Format A: Team Name, 1A/1B/2A/2B/3A/3B, W, L, Pts
+          if (validDivs.has(col1Upper)) {
+            if (parts[2] && /^\d+\s*-\s*\d+$/.test(parts[2])) {
+              const [wStr, lStr] = parts[2].split('-');
+              const pts = parts[3] ? parseFloat(parts[3]) : 0;
+              return { name, div: col1Upper, w: parseInt(wStr, 10), l: parseInt(lStr, 10), pts: isNaN(pts) ? 0 : pts };
+            }
+            const w = parseInt(parts[2], 10);
+            const l = parseInt(parts[3], 10);
+            const pts = parts[4] ? parseFloat(parts[4]) : 0;
+            if (!isNaN(w) && !isNaN(l)) {
+              return { name, div: col1Upper, w, l, pts: isNaN(pts) ? 0 : pts };
+            }
+          }
+
+          // Format B: 5-column Sports.ws single-division export: "Team Name, 1, W, L, FPPG"
+          if (parts.length >= 4 && /^\d+$/.test(parts[1]) && /^\d+$/.test(parts[2]) && /^\d+$/.test(parts[3])) {
+            const w = parseInt(parts[2], 10);
+            const l = parseInt(parts[3], 10);
+            const pts = parts[4] ? parseFloat(parts[4]) : 0;
+            return { name, div: 'UNASSIGNED', w, l, pts: isNaN(pts) ? 0 : pts };
+          }
+
+          // Format C: "Team Name, W-L, FPPG"
+          if (/^\d+\s*-\s*\d+$/.test(parts[1])) {
+            const [wStr, lStr] = parts[1].split('-');
+            const pts = parts[2] ? parseFloat(parts[2]) : 0;
+            return { name, div: 'UNASSIGNED', w: parseInt(wStr, 10), l: parseInt(lStr, 10), pts: isNaN(pts) ? 0 : pts };
+          }
+
+          // Format D: "Team Name, W, L, FPPG"
+          const w = parseInt(parts[1], 10);
+          const l = parseInt(parts[2], 10);
+          const pts = parts[3] ? parseFloat(parts[3]) : 0;
+          if (!isNaN(w) && !isNaN(l)) {
+            return { name, div: 'UNASSIGNED', w, l, pts: isNaN(pts) ? 0 : pts };
+          }
+        }
+      }
+
+      // Format E: Space-separated / parentheses "Pating Gaming (9-6) 90.9"
+      const wlDashMatch = line.match(/^(.*?)\s+\(?(\d+)\s*-\s*(\d+)\)?(?:\s+([\d.]+))?$/);
+      if (wlDashMatch) {
+        const name = wlDashMatch[1].trim();
+        const w = parseInt(wlDashMatch[2], 10);
+        const l = parseInt(wlDashMatch[3], 10);
+        const pts = wlDashMatch[4] ? parseFloat(wlDashMatch[4]) : 0;
+        if (name && !isNaN(w) && !isNaN(l)) {
+          return { name, div: 'UNASSIGNED', w, l, pts: isNaN(pts) ? 0 : pts };
+        }
+      }
+
+      return null;
+    }
+
+    function applyBulkPaste() {
+      const raw = document.getElementById('bulk-textarea').value.trim();
+      const errEl = document.getElementById('bulk-error');
+      const lines = raw.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+
+      if (lines.length < 22 || lines.length > 30) {
+        errEl.textContent = `Expected between 22 and 30 teams (standard 26), found ${lines.length} rows.`;
+        errEl.classList.remove('hidden');
+        return;
+      }
+
+      const parsed = [];
+      for (let i = 0; i < lines.length; i++) {
+        const item = parseStandingsLine(lines[i]);
+        if (!item) {
+          errEl.textContent = `Row ${i + 1} could not be parsed: "${lines[i]}".`;
+          errEl.classList.remove('hidden');
+          return;
+        }
+        parsed.push({
+          id: i + 1,
+          name: item.name,
+          div: item.div,
+          w: item.w,
+          l: item.l,
+          pts: item.pts,
+          h2h: lines.length - i,
+          exiting: false
+        });
+      }
+
+      teams = parsed;
+      expansionTeams = [];
+      currentFilter = 'ALL';
+      closeBulkModal();
+
+      const hasUnassigned = teams.some(t => t.div === 'UNASSIGNED');
+      if (hasUnassigned) {
+        setMode('inaugural');
+        populateAllPlayoffDropdowns(true);
+        runSimulation();
+        showToast(`Imported ${teams.length} unassigned teams in Inaugural Seeding mode (Sec. 3.6)!`);
+      } else {
+        setMode('standard');
+        populateAllPlayoffDropdowns(true);
+        runSimulation();
+        showToast(`Imported ${teams.length} teams with 1A–3B divisions!`);
+      }
+    }
+
+    function promoteOutputToCurrentSeason() {
+      if (!lastSimulationResult || !lastSimulationResult.divisions) {
+        showToast('Run a valid simulation first before promoting.', true);
+        return;
+      }
+      const { divisions } = lastSimulationResult;
+      const nextTeams = [];
+      let nextId = 1;
+
+      ['1A', '1B', '2A', '2B', '3A', '3B'].forEach(divCode => {
+        (divisions[divCode] || []).forEach(t => {
+          nextTeams.push({
+            id: nextId++,
+            name: t.name,
+            div: divCode,
+            w: t.div === 'NEW' ? 0 : t.w,
+            l: t.div === 'NEW' ? 0 : t.l,
+            pts: t.div === 'NEW' ? 0 : t.pts,
+            h2h: t.div === 'NEW' ? 0 : (t.h2h || 0),
+            exiting: false
+          });
+        });
+      });
+
+      teams = nextTeams;
+      expansionTeams = [];
+      currentFilter = 'ALL';
+      setMode('standard');
+      populateAllPlayoffDropdowns(true);
+      runSimulation();
+      showToast('Locked generated divisions into Step 1 (Mode B: Standard Offseason active)!');
+    }
+
+    function copyTextToClipboard(text, successMsg) {
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      try {
+        document.execCommand('copy');
+        showToast(successMsg);
+      } catch (e) {
+        showToast('Failed to copy text', true);
+      }
+      document.body.removeChild(textarea);
+    }
+
+    // Plain-text FB Messenger summary (strictly NO Markdown asterisks/bolding)
+    function copyMessengerSummary() {
+      if (!lastSimulationResult) return;
+      const { divisions } = lastSimulationResult;
+
+      const formatDivBlock = (label, list) => {
+        const rows = list.map((t, idx) => `• ${idx + 1}. ${t.name} [${t.badge}]`).join('\n');
+        return `${label} (${list.length} Teams):\n${rows}`;
+      };
+
+      const msg = [
+        `🏀 LIGA NG MGA GWAPINGS — NEXT SEASON DIVISIONS 🏀`,
+        ``,
+        `=== CONFERENCE A ===`,
+        formatDivBlock('Division 1A - Premier', divisions['1A']),
+        ``,
+        formatDivBlock('Division 2A - Contenders', divisions['2A']),
+        ``,
+        formatDivBlock('Division 3A - The Grind', divisions['3A']),
+        ``,
+        `=== CONFERENCE B ===`,
+        formatDivBlock('Division 1B - Premier', divisions['1B']),
+        ``,
+        formatDivBlock('Division 2B - Contenders', divisions['2B']),
+        ``,
+        formatDivBlock('Division 3B - The Grind', divisions['3B']),
+      ].join('\n');
+
+      copyTextToClipboard(msg, 'Copied plain-text FB Messenger summary!');
+    }
+
+    function copyCsvOutput() {
+      if (!lastSimulationResult) return;
+      const { divisions } = lastSimulationResult;
+      const rows = ['Conference,New Division,Team Name,Prior Division,Prior Record,FPPG,Movement Status,Snake Seed'];
+
+      const confMap = {
+        '1A': 'Conference A', '2A': 'Conference A', '3A': 'Conference A',
+        '1B': 'Conference B', '2B': 'Conference B', '3B': 'Conference B'
+      };
+      ['1A', '1B', '2A', '2B', '3A', '3B'].forEach(div => {
+        divisions[div].forEach(t => {
+          const rec = t.div === 'NEW' ? '0-0' : `${t.w}-${t.l}`;
+          rows.push(`"${confMap[div]}","${div}","${t.name}","${t.div}","${rec}","${t.pts}","${t.badge}","${t.snakeSeed}"`);
+        });
+      });
+
+      copyTextToClipboard(rows.join('\n'), 'Copied CSV table to clipboard!');
+    }
+
+    // =========================================================================
+    // 9. INITIALIZATION
+    // =========================================================================
+    window.onload = function () {
+      renderStandingsTable();
+      populateAllPlayoffDropdowns(true);
+      runSimulation();
+    };
+  </script>
+</body>
+</html>
